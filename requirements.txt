@@ -1,9 +1,8 @@
-flask
+Flask
 torch
 opencv-python
 numpy
 google-api-python-client
 google-auth-oauthlib
 twilio
-Flask
 gunicorn
