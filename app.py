@@ -5,12 +5,11 @@ import numpy as np
 import time
 import base64
 import os
-from dotenv import load_dotenv
+
 
 from google_drive_upload import upload_to_drive
 
-# Load environment variables
-load_dotenv()
+
 
 app = Flask(__name__)
 
