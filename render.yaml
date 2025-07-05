@@ -1,0 +1,5 @@
+services:
+  - type: web
+    name: SecureVisionAlert
+    env: python
+    startCommand: gunicorn app:app
