@@ -1,22 +1,17 @@
 from flask import Flask, request, jsonify, render_template
-import torch
 import cv2
 import numpy as np
 import time
 import base64
 import os
 
-
+from ultralytics import YOLO
 from google_drive_upload import upload_to_drive
-
-
-
 
 app = Flask(__name__)
 
-# Load YOLOv5 model
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s', trust_repo=True)
-model.eval()
+# Load YOLOv5 model from local weights
+model = YOLO('yolov5s.pt')
 
 # ---------- Image Enhancement Function ----------
 def enhance_dark_image(img):
@@ -35,9 +30,11 @@ def enhance_dark_image(img):
 @app.route('/')
 def index():
     return render_template('index.html')
+
 @app.route('/home')
 def home():
     return render_template('home.html')
+
 @app.route('/about')
 def about():
     return render_template('about.html')
@@ -45,10 +42,10 @@ def about():
 @app.route('/contact')
 def contact():
     return render_template('contact.html')
+
 @app.route('/logo.png')
 def logo():
     return app.send_static_file('logo.png')
-
 
 @app.route('/detect', methods=['POST'])
 def detect():
@@ -69,7 +66,7 @@ def detect():
 
         # Run YOLOv5 detection
         results = model(enhanced_img)
-        labels = results.pandas().xyxy[0]['name'].tolist()
+        labels = results[0].names
 
         if 'person' in labels:
             timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -83,12 +80,11 @@ def detect():
                 upload_to_drive(image_path, drive_folder_id)
 
                 print(f"[INFO] Image uploaded to Google Drive: {image_path}")
-                # Prepare response message
+
                 message = (
                     "🚨 Person detected!\n"
                     "📁 Picture uploaded to Drive."
                 )
-               
 
                 return jsonify({
                     'person_detected': True,
@@ -110,8 +106,9 @@ def detect():
         print(f"[ERROR]: {e}")
         return jsonify({'error': str(e)}), 500
 
-
+# ---------- Entry point for Render ----------
 if __name__ == '__main__':
     if not os.path.exists('media'):
         os.makedirs('media')
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
