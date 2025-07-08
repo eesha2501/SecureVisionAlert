@@ -1,37 +1,37 @@
 import os
-from google.oauth2.credentials import Credentials
+import pickle
 from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.http import MediaFileUpload
+from google.auth.transport.requests import Request
 
-SCOPES = ['https://www.googleapis.com/auth/drive.file']
-
-def get_drive_service():
+def get_user_drive_service():
     creds = None
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    else:
-        flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-        creds = flow.run_local_server(port=0)
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
-    return build('drive', 'v3', credentials=creds)
+    if os.path.exists('user_token.pickle'):
+        with open('user_token.pickle', 'rb') as token:
+            creds = pickle.load(token)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            with open('user_token.pickle', 'wb') as token:
+                pickle.dump(creds, token)
+        else:
+            raise Exception('User not authenticated. Please visit /authorize first.')
+
+    service = build('drive', 'v3', credentials=creds)
+    return service
 
 def upload_to_drive(file_path, folder_id):
-    try:
-        service = get_drive_service()
-        file_metadata = {
-            'name': os.path.basename(file_path),
-            'parents': [folder_id]
-        }
-        media = MediaFileUpload(file_path, resumable=True)
-        file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id'
-        ).execute()
-        print(f"[DRIVE] File uploaded successfully with ID: {file.get('id')}")
-        return file.get('id')
-    except Exception as e:
-        print(f"[DRIVE UPLOAD ERROR]: {e}")
-        raise
+    service = get_user_drive_service()
+    file_metadata = {
+        'name': os.path.basename(file_path),
+        'parents': [folder_id]
+    }
+    media = MediaFileUpload(file_path, resumable=True)
+    file = service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id'
+    ).execute()
+    print(f"[DRIVE] File uploaded successfully with ID: {file.get('id')}")
+    return file.get('id')
